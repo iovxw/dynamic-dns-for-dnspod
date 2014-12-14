@@ -172,7 +172,7 @@ func main() {
 		if err != nil {
 			printError("getRecordInfo", err)
 		} else {
-			// 处理错误
+			// 检查错误
 			if recordInfo.Status.Code != "1" {
 				printError("getRecordInfo", recordInfo.Status.Message)
 			} else {
@@ -199,7 +199,7 @@ func main() {
 						if err != nil {
 							printError("recordModify", err)
 						} else {
-							// 处理错误
+							// 检查错误
 							if recordModify.Status.Code == "1" {
 								printInfo("IP", "DNS更新完成")
 							} else {
