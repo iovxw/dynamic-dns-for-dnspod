@@ -1,7 +1,7 @@
 dynamic-dns-for-dnspod
 ======================
 
-DNSPOod动态DNS设置工具
+DNSPod动态DNS设置工具
 
 Quick Start
 -----------
