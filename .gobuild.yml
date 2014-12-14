@@ -1,0 +1,7 @@
+author: "Bluek404"
+description: "Dynamic DNS for DNSPod"
+filesets:
+  includes:
+    - README.md
+    - LICENSE
+    - config.yaml

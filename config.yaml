@@ -1,0 +1,10 @@
+#DNSPod注册邮箱
+Email: example@xxx.com
+#DNSPod账户密码
+Password: PASSWORD
+#域名
+Domain: example.com
+#子域名，如果没有请填@
+SubDomain: example
+#检查IP更新的间隔，单位为秒
+CheckTime: 30 
