@@ -109,7 +109,7 @@ func main() {
 		printError("RecordID", "域名中不存在此子域名或此子域名不存在A记录")
 		printInfo("SubDomain", "尝试添加此子域名A记录")
 		var info = &infoType{}
-		err = postMsg("https://dnsapi.cn/Domain.List", url.Values{
+		err = postMsg("https://dnsapi.cn/Record.Create", url.Values{
 			"login_email":    {email},
 			"login_password": {password},
 			"format":         {"json"},
@@ -169,7 +169,7 @@ func main() {
 
 	// 设置动态DNS
 	var recordModify = &infoType{}
-	err = postMsg("https://dnsapi.cn/Record.List", url.Values{
+	err = postMsg("https://dnsapi.cn/Record.Ddns", url.Values{
 		"login_email":    {email},
 		"login_password": {password},
 		"format":         {"json"},
