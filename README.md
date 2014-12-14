@@ -6,7 +6,7 @@ DNSPOod动态DNS设置工具
 Quick Start
 -----------
 
-首先将域名添加到DNSPod（也可使用本程序自动添加，但是一定要先设的NS）
+首先将域名添加到DNSPod（也可使用本程序自动添加，但是一定要先设置NS）
 
 然后编辑`config.yaml`，修改相应配置
 
