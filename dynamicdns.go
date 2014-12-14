@@ -35,21 +35,23 @@ func main() {
 	}
 
 	var domainList = new(domainListType)
-	err := postMsg("https://dnsapi.cn/Domain.List", url.Values{
+	err = postMsg("https://dnsapi.cn/Domain.List", url.Values{
 		"login_email":    {config.Email},
 		"login_password": {config.Password},
 		"format":         {"json"},
+		"lang":           {"cn"},
 	}, domainList)
 	if err != nil {
 		printError("getDomainList", err)
 		os.Exit(1)
 	}
 
-	// 处理错误
-	if isError(domainList.Status.Code) {
-		os.Exit(1)
-	} else {
+	// 检查错误
+	if domainList.Status.Code == "1" {
 		printInfo("Login", "登录成功")
+	} else {
+		printError("Login", domainList.Status.Message)
+		os.Exit(1)
 	}
 
 	// 获取Domain ID
@@ -68,6 +70,7 @@ func main() {
 			"login_email":    {config.Email},
 			"login_password": {config.Password},
 			"format":         {"json"},
+			"lang":           {"cn"},
 			"domain":         {config.Domain},
 		}, info)
 		if err != nil {
@@ -75,13 +78,14 @@ func main() {
 			os.Exit(1)
 		}
 
-		// 处理错误
-		if isError(info.Status.Code) {
-			os.Exit(1)
-		} else {
+		// 检查错误
+		if info.Status.Code == "1" {
 			printInfo("addDomain", "操作成功，请重启程序查看是否可用")
 			// 操作成功，退出程序
 			os.Exit(0)
+		} else {
+			printError("addDomain", info.Status.Message)
+			os.Exit(1)
 		}
 	}
 	printInfo("DomainID", domainID)
@@ -91,10 +95,17 @@ func main() {
 		"login_email":    {config.Email},
 		"login_password": {config.Password},
 		"format":         {"json"},
+		"lang":           {"cn"},
 		"domain_id":      {domainID},
 	}, recordList)
 	if err != nil {
 		printError("getRecordList", err)
+		os.Exit(1)
+	}
+
+	// 检查错误
+	if recordList.Status.Code != "1" {
+		printError("getRecordList", recordList.Status.Message)
 		os.Exit(1)
 	}
 
@@ -120,6 +131,7 @@ func main() {
 			"login_email":    {config.Email},
 			"login_password": {config.Password},
 			"format":         {"json"},
+			"lang":           {"cn"},
 			"domain_id":      {domainID},
 			"sub_domain":     {config.SubDomain},
 			"record_type":    {"A"},
@@ -131,13 +143,14 @@ func main() {
 			os.Exit(1)
 		}
 
-		// 处理错误
-		if isError(info.Status.Code) {
-			os.Exit(1)
-		} else {
+		// 检查错误
+		if info.Status.Code == "1" {
 			printInfo("addSubDomain", "操作成功，请重启程序查看是否可用")
 			// 操作成功，退出程序
 			os.Exit(0)
+		} else {
+			printError("addSubDomain", info.Status.Message)
+			os.Exit(1)
 		}
 	}
 	printInfo("RecordID", recordID)
@@ -152,6 +165,7 @@ func main() {
 			"login_email":    {config.Email},
 			"login_password": {config.Password},
 			"format":         {"json"},
+			"lang":           {"cn"},
 			"domain_id":      {domainID},
 			"record_id":      {recordID},
 		}, recordInfo)
@@ -159,9 +173,9 @@ func main() {
 			printError("getRecordInfo", err)
 		} else {
 			// 处理错误
-			if !isError(recordInfo.Status.Code) {
-				// 无错误
-
+			if recordInfo.Status.Code != "1" {
+				printError("getRecordInfo", recordInfo.Status.Message)
+			} else {
 				// 获取当前IP
 				ip, err := getIP()
 				if err != nil {
@@ -176,6 +190,7 @@ func main() {
 							"login_email":    {config.Email},
 							"login_password": {config.Password},
 							"format":         {"json"},
+							"lang":           {"cn"},
 							"domain_id":      {domainID},
 							"record_id":      {recordID},
 							"sub_domain":     {config.SubDomain},
@@ -185,10 +200,10 @@ func main() {
 							printError("recordModify", err)
 						} else {
 							// 处理错误
-							if !isError(recordModify.Status.Code) {
-								// 无错误
-
+							if recordModify.Status.Code == "1" {
 								printInfo("IP", "DNS更新完成")
+							} else {
+								printError("recordModify", recordModify.Status.Message)
 							}
 						}
 					} else {
@@ -230,54 +245,6 @@ func printError(s string, v ...interface{}) {
 	log.Println(append([]interface{}{"[ERROR]", s + ":"}, v...)...)
 }
 
-func isError(code string) bool {
-	switch code {
-	case "1":
-		return false
-	case "-1":
-		printError("Login", "登录失败")
-	case "-2":
-		printError("Login", "API使用超出限制")
-	case "-8":
-		printError("Login", "登录失败次数过多，帐号被暂时封禁")
-	case "83":
-		printError("Login", "该帐户已经被锁定，无法进行任何操作")
-	case "85":
-		printError("Login", "该帐户开启了登录区域保护，当前IP不在允许的区域内")
-	case "6":
-		printError("addDomain", "域名无效")
-	case "11":
-		printError("addDomain", "域名已经存在并且是其它域名的别名")
-	case "12":
-		printError("addDomain", "域名已经存在并且您没有权限管理")
-	case "41":
-		printError("addDomain", "网站内容不符合DNSPod解析服务条款，域名添加失败")
-	case "-15":
-		printError("addSubDomain", "域名已被封禁")
-	case "-7":
-		printError("addSubDomain", "企业账号的域名需要升级才能设置")
-	case "21":
-		printError("addSubDomain", "域名被锁定")
-	case "22":
-		printError("addSubDomain", "子域名不合法")
-	case "23":
-		printError("addSubDomain", "子域名级数超出限制")
-	case "24":
-		printError("addSubDomain", "泛解析子域名错误")
-	case "25":
-		printError("addSubDomain", "轮循记录数量超出限制")
-	case "31":
-		printError("addSubDomain", "存在冲突的记录(A记录、CNAME记录、URL记录不能共存)")
-	case "33":
-		printError("addSubDomain", "AAAA 记录数超出限制")
-	case "82":
-		printError("addSubDomain", "不能添加黑名单中的IP")
-	default:
-		printError("DNSPodAPI", "未知错误，错误代号:", code)
-	}
-	return true
-}
-
 func getIP() (string, error) {
 	resp, err := http.Get("http://ip.cn")
 	if err != nil {
@@ -301,11 +268,11 @@ func getIP() (string, error) {
 }
 
 type configType struct {
-	Email     string
-	Password  string
-	Domain    string
-	SubDomain string
-	CheckTime time.Duration
+	Email     string        `yaml:"Email"`
+	Password  string        `yaml:"Password"`
+	Domain    string        `yaml:"Domain"`
+	SubDomain string        `yaml:"SubDomain"`
+	CheckTime time.Duration `yaml:"CheckTime"`
 }
 
 type domainListType struct {
