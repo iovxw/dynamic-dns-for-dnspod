@@ -11,23 +11,33 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"gopkg.in/v2/yaml"
 )
 
 var (
+	// 用于截取当前IP，放在全局变量是为了不用多次解析正则
 	ipRegexp = regexp.MustCompile(`<code>([^\n]+)</code>`)
-
-	email     string        = "test@test.test"
-	password  string        = "testtest"
-	domain    string        = "test.test"
-	subDomain string        = "test"
-	checkTime time.Duration = 30
 )
 
 func main() {
-	var domainList = &domainListType{}
+	// 读配置文件
+	buf, err := ioutil.ReadFile("config.yaml")
+	if err != nil {
+		printError("readConfig", err)
+		os.Exit(1)
+	}
+	var config = new(configType)
+	err = yaml.Unmarshal(buf, config)
+	if err != nil {
+		printError("unmarshalConfig", err)
+		os.Exit(1)
+	}
+
+	var domainList = new(domainListType)
 	err := postMsg("https://dnsapi.cn/Domain.List", url.Values{
-		"login_email":    {email},
-		"login_password": {password},
+		"login_email":    {config.Email},
+		"login_password": {config.Password},
 		"format":         {"json"},
 	}, domainList)
 	if err != nil {
@@ -45,7 +55,7 @@ func main() {
 	// 获取Domain ID
 	var domainID string
 	for _, v := range domainList.Domains {
-		if v.Name == domain {
+		if v.Name == config.Domain {
 			domainID = strconv.Itoa(v.ID)
 			break
 		}
@@ -53,12 +63,12 @@ func main() {
 	if domainID == "" {
 		printError("DomainID", "账户中不存在此域名")
 		printInfo("Domain", "尝试添加此域名到账户，请注意设置域名NS以及验证是否添加成功")
-		var info = &infoType{}
+		var info = new(infoType)
 		err = postMsg("https://dnsapi.cn/Domain.Create", url.Values{
-			"login_email":    {email},
-			"login_password": {password},
+			"login_email":    {config.Email},
+			"login_password": {config.Password},
 			"format":         {"json"},
-			"domain":         {domain},
+			"domain":         {config.Domain},
 		}, info)
 		if err != nil {
 			printError("addDomain", err)
@@ -76,10 +86,10 @@ func main() {
 	}
 	printInfo("DomainID", domainID)
 
-	var recordList = &recordListType{}
+	var recordList = new(recordListType)
 	err = postMsg("https://dnsapi.cn/Record.List", url.Values{
-		"login_email":    {email},
-		"login_password": {password},
+		"login_email":    {config.Email},
+		"login_password": {config.Password},
 		"format":         {"json"},
 		"domain_id":      {domainID},
 	}, recordList)
@@ -92,7 +102,7 @@ func main() {
 	var recordID string
 	for _, v := range recordList.Records {
 		// 获取相同子域名，类型为A记录，线路为默认的记录ID
-		if v.Name == subDomain && v.Type == "A" && v.Line == "默认" {
+		if v.Name == config.SubDomain && v.Type == "A" && v.Line == "默认" {
 			recordID = v.ID
 			break
 		}
@@ -105,13 +115,13 @@ func main() {
 		if err != nil {
 			printError("getIP", err)
 		}
-		var info = &infoType{}
+		var info = new(infoType)
 		err = postMsg("https://dnsapi.cn/Record.Create", url.Values{
-			"login_email":    {email},
-			"login_password": {password},
+			"login_email":    {config.Email},
+			"login_password": {config.Password},
 			"format":         {"json"},
 			"domain_id":      {domainID},
-			"sub_domain":     {subDomain},
+			"sub_domain":     {config.SubDomain},
 			"record_type":    {"A"},
 			"record_line":    {"默认"},
 			"value":          {ip},
@@ -132,12 +142,15 @@ func main() {
 	}
 	printInfo("RecordID", recordID)
 
+	// 循环检测IP与设置DNS
+	// 一旦出现error则直接结束本次循环
+	// 进入sleep等待下一次循环
 	for {
 		// 获取记录的IP
-		var recordInfo = &recordInfoType{}
+		var recordInfo = new(recordInfoType)
 		err = postMsg("https://dnsapi.cn/Record.Info", url.Values{
-			"login_email":    {email},
-			"login_password": {password},
+			"login_email":    {config.Email},
+			"login_password": {config.Password},
 			"format":         {"json"},
 			"domain_id":      {domainID},
 			"record_id":      {recordID},
@@ -158,14 +171,14 @@ func main() {
 					if ip != recordInfo.Record.Value {
 						printInfo("IP", recordInfo.Record.Value, "==>", ip, "IP变更，自动更新DNS")
 						// 设置动态DNS
-						var recordModify = &recordModifyType{}
+						var recordModify = new(recordModifyType)
 						err = postMsg("https://dnsapi.cn/Record.Ddns", url.Values{
-							"login_email":    {email},
-							"login_password": {password},
+							"login_email":    {config.Email},
+							"login_password": {config.Password},
 							"format":         {"json"},
 							"domain_id":      {domainID},
 							"record_id":      {recordID},
-							"sub_domain":     {subDomain},
+							"sub_domain":     {config.SubDomain},
 							"record_line":    {"默认"},
 						}, recordModify)
 						if err != nil {
@@ -179,13 +192,13 @@ func main() {
 							}
 						}
 					} else {
-						printInfo("IP", "没有检测到IP变更。下次检查时间：", checkTime, "后")
+						printInfo("IP", "没有检测到IP变更。下次检查时间：", config.CheckTime, "后")
 					}
 				}
 			}
 		}
 
-		time.Sleep(time.Second * checkTime)
+		time.Sleep(time.Second * config.CheckTime)
 	}
 }
 
@@ -285,6 +298,14 @@ func getIP() (string, error) {
 	}
 
 	return string(buf[1]), nil
+}
+
+type configType struct {
+	Email     string
+	Password  string
+	Domain    string
+	SubDomain string
+	CheckTime time.Duration
 }
 
 type domainListType struct {
