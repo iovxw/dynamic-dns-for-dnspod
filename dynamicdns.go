@@ -34,6 +34,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 获取域名列表
 	var domainList = new(domainListType)
 	err = postMsg("https://dnsapi.cn/Domain.List", url.Values{
 		"login_email":    {config.Email},
@@ -47,12 +48,12 @@ func main() {
 	}
 
 	// 检查错误
-	if domainList.Status.Code == "1" {
-		printInfo("Login", "登录成功")
-	} else {
+	if domainList.Status.Code != "1" {
 		printError("Login", domainList.Status.Message)
 		os.Exit(1)
 	}
+
+	printInfo("Login", "登录成功")
 
 	// 获取Domain ID
 	var domainID string
@@ -65,6 +66,7 @@ func main() {
 	if domainID == "" {
 		printError("DomainID", "账户中不存在此域名")
 		printInfo("Domain", "尝试添加此域名到账户，请注意设置域名NS以及验证是否添加成功")
+		// 添加域名
 		var info = new(infoType)
 		err = postMsg("https://dnsapi.cn/Domain.Create", url.Values{
 			"login_email":    {config.Email},
@@ -79,17 +81,18 @@ func main() {
 		}
 
 		// 检查错误
-		if info.Status.Code == "1" {
-			printInfo("addDomain", "操作成功，请重启程序查看是否可用")
-			// 操作成功，退出程序
-			os.Exit(0)
-		} else {
+		if info.Status.Code != "1" {
 			printError("addDomain", info.Status.Message)
 			os.Exit(1)
 		}
+
+		printInfo("addDomain", "操作成功，请重启程序查看是否可用")
+		// 操作成功，退出程序
+		os.Exit(0)
 	}
 	printInfo("DomainID", domainID)
 
+	// 获取域名中的记录列表
 	var recordList = new(recordListType)
 	err = postMsg("https://dnsapi.cn/Record.List", url.Values{
 		"login_email":    {config.Email},
@@ -126,6 +129,7 @@ func main() {
 		if err != nil {
 			printError("getIP", err)
 		}
+		// 添加记录
 		var info = new(infoType)
 		err = postMsg("https://dnsapi.cn/Record.Create", url.Values{
 			"login_email":    {config.Email},
@@ -144,14 +148,14 @@ func main() {
 		}
 
 		// 检查错误
-		if info.Status.Code == "1" {
-			printInfo("addSubDomain", "操作成功，请重启程序查看是否可用")
-			// 操作成功，退出程序
-			os.Exit(0)
-		} else {
+		if info.Status.Code != "1" {
 			printError("addSubDomain", info.Status.Message)
 			os.Exit(1)
 		}
+
+		printInfo("addSubDomain", "操作成功，请重启程序查看是否可用")
+		// 操作成功，退出程序
+		os.Exit(0)
 	}
 	printInfo("RecordID", recordID)
 
@@ -200,11 +204,11 @@ func main() {
 							printError("recordModify", err)
 						} else {
 							// 检查错误
-							if recordModify.Status.Code == "1" {
-								printInfo("IP", "DNS更新完成")
-							} else {
+							if recordModify.Status.Code != "1" {
 								printError("recordModify", recordModify.Status.Message)
 							}
+
+							printInfo("IP", "DNS更新完成")
 						}
 					} else {
 						printInfo("IP", "没有检测到IP变更。下次检查时间：", config.CheckTime, "后")
@@ -217,6 +221,7 @@ func main() {
 	}
 }
 
+// post信息到API，并将解码返回信息
 func postMsg(u string, msg url.Values, value interface{}) error {
 	getDomainList, err := http.PostForm(u, msg)
 	if err != nil {
@@ -237,10 +242,12 @@ func postMsg(u string, msg url.Values, value interface{}) error {
 	return nil
 }
 
+// 用于打印Info信息
 func printInfo(s string, v ...interface{}) {
 	log.Println(append([]interface{}{"[INFO]", s + ":"}, v...)...)
 }
 
+// 用于打印Error信息
 func printError(s string, v ...interface{}) {
 	log.Println(append([]interface{}{"[ERROR]", s + ":"}, v...)...)
 }
@@ -293,8 +300,10 @@ func reGetIP() (string, error) {
 
 	// 提取IP地址
 	buf := ipRegexp.FindSubmatch(body)
-	// 页面内不存在IP地址
 	if len(buf) == 0 {
+		// 页面内不存在IP地址
+		// 一般是因为服务器错误
+		// 返回错误
 		return "", errors.New("服务器错误，无法获取当前ip")
 	}
 
