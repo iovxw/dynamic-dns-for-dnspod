@@ -245,7 +245,41 @@ func printError(s string, v ...interface{}) {
 	log.Println(append([]interface{}{"[ERROR]", s + ":"}, v...)...)
 }
 
+// 获取本机IP
 func getIP() (string, error) {
+	resp, err := http.Get("http://ns1.dnspod.net:6666")
+	if err != nil {
+		// 连接到服务器出错
+		// 使用备用方式
+		ip, err := reGetIP()
+		if err != nil {
+			return "", err
+		}
+		return ip, nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		// 服务器内部错误
+		// 使用备用方式
+		ip, err := reGetIP()
+		if err != nil {
+			return "", err
+		}
+		return ip, nil
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(body), nil
+}
+
+// 备用获取IP方式
+func reGetIP() (string, error) {
+	// 从ip.cn获取本机IP
 	resp, err := http.Get("http://ip.cn")
 	if err != nil {
 		return "", err
